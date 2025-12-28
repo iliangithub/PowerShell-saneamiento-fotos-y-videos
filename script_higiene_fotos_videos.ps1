@@ -1,4 +1,4 @@
-﻿chcp 65001 | Out-Null
+chcp 65001 | Out-Null
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 # ========== Fondo clásico azul oscuro, texto blanco ==========
@@ -260,6 +260,77 @@ function Programa-Archivos-Y-Carpetas-Ocultas {
 
 
 
+# ================= PROGRAMA 4 =================
+
+function Programa-Archivos-Duplicados {
+
+    Clear-Host
+    Write-Host "==============================================="
+    Write-Host "           BUSCADOR DE ARCHIVOS DUPLICADOS"
+    Write-Host "==============================================="
+    Write-Host ""
+
+    while ($true) {
+
+        $RutaBase = Read-Host "Introduce la ruta (o 'salir')"
+
+        if ($RutaBase.ToLower() -eq "salir") { break }
+
+        if (-not (Test-Path $RutaBase)) {
+            Write-Host "ERROR: La ruta no existe." -ForegroundColor Red
+            continue
+        }
+
+        Write-Host ""
+        Write-Host "Analizando archivos y calculando hashes..."
+        Write-Host ""
+
+        # Crear un diccionario para almacenar hashes y rutas
+        $hashDict = @{}
+
+        # Recorrer todos los archivos
+        Get-ChildItem -Path $RutaBase -Recurse -File | ForEach-Object {
+            try {
+                $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash
+                if ($hashDict.ContainsKey($hash)) {
+                    $hashDict[$hash] += ,$_.FullName
+                }
+                else {
+                    $hashDict[$hash] = @($_.FullName)
+                }
+            }
+            catch {
+                Write-Host "No se pudo calcular hash de: $($_.FullName)" -ForegroundColor Yellow
+            }
+        }
+
+        Write-Host ""
+        Write-Host "Archivos duplicados encontrados:" -ForegroundColor White
+        Write-Host ""
+
+        $duplicados = $hashDict.GetEnumerator() | Where-Object { $_.Value.Count -gt 1 }
+
+        if ($duplicados.Count -eq 0) {
+            Write-Host "No se encontraron archivos duplicados en esta ruta." -ForegroundColor Green
+        }
+        else {
+            foreach ($entry in $duplicados) {
+                Write-Host "------ HASH: $($entry.Key) ------" -ForegroundColor Cyan
+                foreach ($file in $entry.Value) {
+                    Write-Host $file -ForegroundColor Red
+                }
+                Write-Host ""
+            }
+        }
+
+        Write-Host ""
+        $c = Read-Host "¿Analizar otra ruta? (s/n)"
+        if ($c.ToLower() -ne "s") { break }
+        Clear-Host
+    }
+}
+
+
 
 # ============================================================
 # ======================= MENÚ ===============================
@@ -275,7 +346,7 @@ while ($true) {
     Write-Host "1) Buscar archivos NO multimedia con riesgo"
     Write-Host "2) Buscar directorios vacíos"
     Write-Host "3) Mostrar carpetas ocultas"
-
+    Write-Host "4) Buscar archivos que se repiten, NO por nombre, si no, por contenido: mediante verificación de hash"
     Write-Host ""
     Write-Host "Escribe el número del programa o 'salir'"
     Write-Host ""
@@ -286,6 +357,7 @@ while ($true) {
         "1" { Programa-Archivos-Riesgo }
         "2" { Programa-Directorios-Vacios }
    	"3" { Programa-Archivos-Y-Carpetas-Ocultas }
+   	"4" { Programa-Archivos-Duplicados }
 
         "salir" { break }
         default {
